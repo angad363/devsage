@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const projectRouter = createTRPCRouter({
     createProject: protectedProcedure.input(
@@ -23,8 +23,8 @@ export const projectRouter = createTRPCRouter({
         })
         return project
     }),
-    getProjects: protectedProcedure.query(async({ctx}) => {
-        return await ctx.db.project.findMany({
+    getProjects: protectedProcedure.query(async ({ ctx }) => {
+        const projects = await ctx.db.project.findMany({
             where: {
                 userToProject: {
                     some: {
@@ -33,6 +33,7 @@ export const projectRouter = createTRPCRouter({
                 },
                 deletedAt: null
             }
-        })
+        });
+        return projects;
     })
 })

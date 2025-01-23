@@ -91,7 +91,7 @@ export function AppSidebar() {
                                                 className={cn(
                                                     'rounded-sm border size-6 flex items-center justify-center text-sm bg-white text-primary',
                                                     {
-                                                        'bg-primary text-white' : project.id === projectId
+                                                        'bg-primary text-white' : projectId === project.id
                                                     }
                                                 )}>
                                                     {project.name[0]}

@@ -1,23 +1,17 @@
+
 import { api } from '@/trpc/react'
 import React, { useState, useEffect } from 'react'
+import {useLocalStorage} from 'usehooks-ts'
 
 const useProject = () => {
+  // console.log(api.project.getProjects.useQuery())
   const {data: projects} = api.project.getProjects.useQuery()
-  const [projectId, setProjectId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem('projectId') // Retrieve the stored projectId
-    }
-    return null
-  })
 
-  // Save to localStorage whenever projectId changes
-  useEffect(() => {
-    if (projectId) {
-      localStorage.setItem('projectId', projectId)
-    }
-  }, [projectId])
+  const [projectId, setProjectId] = useLocalStorage('devsage-projectid')
 
   const project = projects?.find(project => project.id === projectId)
+  console.log(projects)
+
   return {
     projects,
     project,
