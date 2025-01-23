@@ -1,5 +1,9 @@
 import { db } from "@/server/db";
 import {Octokit} from "octokit"
+import axios from 'axios'
+import { summarizeCommit } from "./gemini";
+
+
 export const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN
 });
@@ -36,11 +40,43 @@ export const pollCommits = async(projectId: string) => {
     const {project, githubUrl} = await fetchProjectGithubUrl(projectId)
     const commitHashes = await getCommitHashes(githubUrl)
     const unprocessedCommits = await filterUprocessedCommits(projectId, commitHashes)
-    console.log(unprocessedCommits)
+    const summaryResponses = await Promise.allSettled(unprocessedCommits.map(commit => {
+        return summarizeCommits(githubUrl, commit.commitHash)
+    }))
+    const summaries = summaryResponses.map((response) => {
+        if(response.status === 'fulfilled'){
+            return response.value as string
+        }
+        return ""
+    })
+
+    const commits = await db.commit.createMany({
+        data: summaries.map((summary, index) => {
+            console.log(`Processing commit ${index}`)
+            return {
+                projectId: projectId,
+                commitHash: unprocessedCommits[index]!.commitHash,
+                commitMessage: unprocessedCommits[index]!.commitMessage,
+                commitAuthorName: unprocessedCommits[index]!.commitAuthorName,
+                commitAuthorAvatar: unprocessedCommits[index]!.commitAuthorAvatar,
+                commitDate: unprocessedCommits[index]!.commitDate,
+                summary
+            }
+        })
+    })
+
+    return commits
 }
 
 async function summarizeCommits(githubUrl: string, commitHash: string){
+    // get the diff, then parse the diff in AI
+    const {data} = await axios.get(`${githubUrl}/commit/${commitHash}.diff`, {
+        headers: {
+            Accept: 'application/vnd.github.v3.diff'
+        }
+    })
 
+    return await summarizeCommit(data) || ""
 }
 
 async function fetchProjectGithubUrl(projectId: string){
@@ -68,4 +104,4 @@ async function filterUprocessedCommits(projectId: string, commitHashes: Response
     return unprocessedCommits
 }
 
-await pollCommits("cm68t7xjy00002hek9lml8kgn").then(console.log)
+// await pollCommits("cm68t7xjy00002hek9lml8kgn").then(console.log)
