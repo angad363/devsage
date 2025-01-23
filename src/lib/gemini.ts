@@ -35,7 +35,7 @@ export const summarizeCommit = async(diff: string) => {
         Do not include parts of the example in your summary.
         It is given only as an example of approppriate comments.
 
-         Please provide a concise summary of the changes made, and **do not include the diff text in the summary**.
+         Please provide a concise summary in bullet points of the changes made, in a neat manner and **do not include the diff text in the summary**.
 
          Diff to summarize:
         \`\`\`diff
