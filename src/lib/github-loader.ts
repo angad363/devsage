@@ -19,43 +19,61 @@ export const loadGithubRepo = async (githubUrl: string, githubToken?: string) =>
             '.png',
             '.jpg',
             '.gif',
-            '.json'
+            '.json',
+            '.gitignore',
+            '.dockerignore'
         ],
         recursive: true,
         unknown: 'warn',
-        maxConcurrency: 5
+        maxConcurrency: 2
     })
     const docs = await loader.load()
     return docs
 }
 
-export const indexGithubRepo = async(projectId: string, githubUrl: string, githubToken?:string) => {
-    const docs = await loadGithubRepo(githubUrl, githubToken)
-    const allEmbeddings = await generateEmbeddings(docs)
-    await Promise.allSettled(allEmbeddings.map(async (embedding, index) => {
-        console.log(`Processing ${index} of ${allEmbeddings.length}`)
-        if(!embedding) return
+export const indexGithubRepo = async (projectId: string, githubUrl: string, githubToken?: string) => {
+    const docs = await loadGithubRepo(githubUrl, githubToken);
+
+    // Prioritize files by extension
+    const prioritizedExtensions = ['.py', '.js', '.tsx', '.jsx', '.java', '.html', '.css', '.yml', '.ipynb'];
+    const prioritizedDocs = docs.sort((a, b) => {
+        const aPriority = prioritizedExtensions.some(ext => a.metadata.source.endsWith(ext)) ? 0 : 1;
+        const bPriority = prioritizedExtensions.some(ext => b.metadata.source.endsWith(ext)) ? 0 : 1;
+        return aPriority - bPriority;
+    });
+
+    // Log prioritized files
+    prioritizedDocs.forEach(doc => console.log(`File: ${doc.metadata.source}, Size: ${doc.pageContent.length}`));
+
+    const allEmbeddings = await generateEmbeddings(prioritizedDocs);
+    await Promise.all(allEmbeddings.map(async (embedding, index) => {
+        console.log(`Processing ${index} of ${allEmbeddings.length}`);
+        if (!embedding) return;
 
         const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
-            data:{
+            data: {
                 summary: embedding.summary,
                 sourceCode: embedding.sourceCode,
                 fileName: embedding.fileName,
                 projectId
             }
-        })
+        });
+
         await db.$executeRaw`
         UPDATE "SourceCodeEmbedding"
         SET "summaryEmbedding" = ${embedding.embedding}::vector
         WHERE "id" = ${sourceCodeEmbedding.id}
-        `
-    }))
-}
+        `;
+    }));
+};
 
 const generateEmbeddings = async (docs: Document[]) => {
     return await Promise.all(docs.map(async doc =>{
         const summary = await summarizeCode(doc)
-        const embedding = await generateEmbedding(summary)
+        console.log('Embedding Input:', summary);
+        const embedding = await generateEmbedding(summary);
+        // console.log('Embedding Output:', embedding);
+
         return {
             summary,
             embedding,

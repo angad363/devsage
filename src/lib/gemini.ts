@@ -52,10 +52,10 @@ export const summarizeCommit = async(diff: string) => {
 export async function summarizeCode(doc: Document){
     console.log("Getting summary for", doc.metadata.source);
     try {
-        const code = doc.pageContent.slice(0, 30000);
+        const code = doc.pageContent.slice(0, 50000);
 
         const response = await model.generateContent([
-            `You are an intelligent senior software engineer who specializes in onboearding junior software engineers onto projects.`,
+            `You are an intelligent senior software engineer who specializes in onboarding junior software engineers onto projects.`,
             `You are onboarding a junior software engineer and explaining to them the purpose of the ${doc.metadata.source} file.`,
             `Here is the code:
                 ---
