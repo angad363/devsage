@@ -13,12 +13,13 @@ export const loadGithubRepo = async (githubUrl: string, githubToken?: string) =>
             'pnpm-lock.yaml',
             'bun.lockb',
             // Add more file types to ignore
-            '*.min.js',
-            '*.min.css',
-            '*.svg',
-            '*.png',
-            '*.jpg',
-            '*.gif'
+            '.min.js',
+            '.min.css',
+            '.svg',
+            '.png',
+            '.jpg',
+            '.gif',
+            '.json'
         ],
         recursive: true,
         unknown: 'warn',
@@ -28,52 +29,27 @@ export const loadGithubRepo = async (githubUrl: string, githubToken?: string) =>
     return docs
 }
 
-export const indexGithubRepo = async (projectId: string, githubUrl: string, githubToken?: string) => {
-    try {
-        const docs = await loadGithubRepo(githubUrl, githubToken);
+export const indexGithubRepo = async(projectId: string, githubUrl: string, githubToken?:string) => {
+    const docs = await loadGithubRepo(githubUrl, githubToken)
+    const allEmbeddings = await generateEmbeddings(docs)
+    await Promise.allSettled(allEmbeddings.map(async (embedding, index) => {
+        console.log(`Processing ${index} of ${allEmbeddings.length}`)
+        if(!embedding) return
 
-        // Filter out empty or problematic documents
-        const validDocs = docs.filter(doc =>
-            doc.pageContent &&
-            doc.pageContent.trim() !== '' &&
-            !doc.metadata.source.endsWith(')') // Exclude potential error paths
-        );
-
-        console.log(`Total documents: ${docs.length}, Valid documents: ${validDocs.length}`);
-
-        const allEmbeddings = await generateEmbeddings(validDocs);
-
-        for (const [index, embedding] of allEmbeddings.entries()) {
-            try {
-                console.log(`Processing ${index + 1} of ${allEmbeddings.length}`);
-
-                if (!embedding) {
-                    console.warn(`Skipping undefined embedding at index ${index}`);
-                    continue;
-                }
-
-                const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
-                    data: {
-                        summary: embedding.summary || 'No summary generated',
-                        sourceCode: embedding.sourceCode,
-                        fileName: embedding.fileName,
-                        projectId
-                    }
-                });
-
-                await db.$executeRaw`
-                UPDATE "SourceCodeEmbedding"
-                SET "summaryEmbedding" = ${embedding.embedding || []}::vector
-                WHERE "id" = ${sourceCodeEmbedding.id}
-                `;
-            } catch (embeddingError) {
-                console.error(`Error processing individual embedding at index ${index}:`, embeddingError);
+        const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
+            data:{
+                summary: embedding.summary,
+                sourceCode: embedding.sourceCode,
+                fileName: embedding.fileName,
+                projectId
             }
-        }
-    } catch (error) {
-        console.error('Error in indexGithubRepo:', error);
-        throw error; // Re-throw to allow caller to handle
-    }
+        })
+        await db.$executeRaw`
+        UPDATE "SourceCodeEmbedding"
+        SET "summaryEmbedding" = ${embedding.embedding}::vector
+        WHERE "id" = ${sourceCodeEmbedding.id}
+        `
+    }))
 }
 
 const generateEmbeddings = async (docs: Document[]) => {

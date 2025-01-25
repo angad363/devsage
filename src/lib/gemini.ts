@@ -52,58 +52,25 @@ export const summarizeCommit = async(diff: string) => {
 export async function summarizeCode(doc: Document){
     console.log("Getting summary for", doc.metadata.source);
     try {
-
-        // Validate input
-        if (!doc.pageContent) {
-            console.error(`No content for file: ${doc.metadata.source}`);
-            return '';
-        }
-        const code = doc.pageContent.slice(0, 10000);
-
-        // Additional checks for code length
-        if (code.trim() === '') {
-            console.warn(`Empty file content: ${doc.metadata.source}`);
-            return '';
-        }
+        const code = doc.pageContent.slice(0, 30000);
 
         const response = await model.generateContent([
-            `You are a senior software engineer specializing in technical documentation and code comprehension.`,
+            `You are an intelligent senior software engineer who specializes in onboearding junior software engineers onto projects.`,
+            `You are onboarding a junior software engineer and explaining to them the purpose of the ${doc.metadata.source} file.`,
+            `Here is the code:
+                ---
+                ${code}
+                ---
 
-            `Task: Generate a precise, professional code file summary for a new developer joining the project.`,
-
-            `Summary Requirements:
-            - Purpose: Explain the core responsibility and function of this file
-            - Technical Depth: Highlight key classes, functions, or algorithms
-            - Context: Describe how this file fits into the broader project architecture
-            - Audience: Write for a junior to mid-level developer with basic programming knowledge
-
-            Formatting Guidelines:
-            - Length: Between 75-125 words
-            - Tone: Clear, technical, and informative
-            - Avoid marketing language or excessive praise
-            - Use technical terminology appropriately
-
-            Specific Instructions for ${doc.metadata.source}:
-            - Identify the primary programming language
-            - Note any significant design patterns or architectural approaches
-            - Mention critical dependencies or imported libraries
-            - Explain the file's role in the overall system workflow
-
-            Additional Context:
-            Code Content:
-            ---
-            ${code}
-            ---
-
-            Provide a comprehensive yet concise summary that would help a new developer quickly understand this file's purpose and functionality.`
+                Give a summary no more than 100 words of the code above.`
         ]);
         console.log(response.response.text())
         return response.response.text()
-
     } catch (error) {
-        return ''
+        return ""
     }
 }
+
 
 export async function generateEmbedding(summary: string){
     const model = genAI.getGenerativeModel({

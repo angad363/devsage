@@ -26,6 +26,7 @@ export const projectRouter = createTRPCRouter({
         await pollCommits(project.id)
         await indexGithubRepo(project.id, input.githubUrl, input.githubToken)
         return project
+
     }),
     getProjects: protectedProcedure.query(async ({ ctx }) => {
         console.log('Incoming request for getProjects:', ctx.user.userId);
